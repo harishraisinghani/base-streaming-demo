@@ -76,7 +76,7 @@ function App() {
       <AppContainer>
         <Header>
           <Title>Base Sepolia Data Streams </Title>
-          <Subtitle>Real-time blockchain data streamvisualization</Subtitle>
+          <Subtitle>Real-time blockchain data stream visualization</Subtitle>
         </Header>
         <DashboardGrid>
           <BlockStream />

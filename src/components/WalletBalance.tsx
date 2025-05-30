@@ -67,7 +67,11 @@ const WalletBalance: React.FC = () => {
         >
           <div style={{ marginBottom: '15px' }}>
             <div style={{ fontSize: '0.9em', color: '#888' }}>Address</div>
-            <div>{wallet.wallet_address}</div>
+            <div style={{ 
+              wordBreak: 'break-all',
+              overflowWrap: 'break-word',
+              fontFamily: 'monospace'
+            }}>{wallet.wallet_address}</div>
           </div>
           <div style={{ marginBottom: '15px' }}>
             <div style={{ fontSize: '0.9em', color: '#888' }}>Last Block</div>

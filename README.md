@@ -1,46 +1,46 @@
-# Getting Started with Create React App
+# Base Sepolia Streaming API Demo
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This project demonstrates the **GoldRush Streaming API** with a focus on the **Token Balances Stream**. It provides a real-time dashboard for monitoring wallet token balances and block updates on the Base Sepolia testnet.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- **GoldRush Token Balances Stream**: 
+  - Subscribes to the GoldRush WebSocket API for real-time wallet token balances.
+  - Capable of receiving updates as fast as every **200ms**.
+  - Displays token balances, contract info, and wallet address in a responsive UI.
 
-### `npm start`
+- **Flashblocks WebSocket Comparison**:
+  - Simultaneously connects to the Flashblocks WebSocket for block updates.
+  - Allows you to compare the speed and data freshness between GoldRush and Flashblocks streams.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- **Mobile Friendly**:
+  - Responsive design ensures wallet addresses and data wrap correctly on all devices.
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## How It Works
 
-### `npm test`
+- The app connects directly to:
+  - **GoldRush Streaming API**: `wss://gr-staging.streaming.covalenthq.com/graphql`
+  - **Flashblocks WebSocket**: `wss://sepolia.flashblocks.base.org/ws`
+- No backend or proxy server required—everything runs in the browser.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Getting Started
 
-### `npm run build`
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+2. **Start the app:**
+   ```bash
+   npm start
+   ```
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Why GoldRush?
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- **Ultra-fast updates**: GoldRush can push token balance changes as quickly as every 200ms, making it ideal for real-time dashboards and trading tools.
+- **Comprehensive data**: Get detailed token info, balances, and contract metadata in a single stream.
+- **Direct comparison**: See how GoldRush's speed and data compare to Flashblocks in real time.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+---
 
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+For more information, visit the [Covalent GoldRush API documentation](https://www.covalenthq.com/docs/streaming/).

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { createClient } from 'graphql-ws';
+import { createClient, Client } from 'graphql-ws';
 
 interface Block {
   number: string;
@@ -116,62 +116,76 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, []);
 
-  // Covalent WebSocket connection
+  // Covalent WebSocket connection with auto-resubscribe
   useEffect(() => {
-    const covalentClient = createClient({
-      url: 'wss://gr-staging.streaming.covalenthq.com/graphql',
-      webSocketImpl: WebSocket,
-      shouldRetry: (errOrCloseEvent: unknown) => true,
-    });
+    let active = true;
+    let unsubscribe: (() => void) | null = null;
+    let client: Client | null = null;
 
-    const unsubscribe = covalentClient.subscribe(
-      {
-        query: `
-          subscription {
-            walletBalances(
-              chain_name: BASE_SEPOLIA
-              wallet_address: "0x4200000000000000000000000000000000000011"
-            ) {
-              wallet_address
-              last_block
-              items {
-                balance
-                balance_pretty
-                is_native
-                metadata {
-                  contract_name
-                  contract_ticker_symbol
-                  contract_address
-                  contract_decimals
+    function subscribe() {
+      client = createClient({
+        url: 'wss://gr-staging.streaming.covalenthq.com/graphql',
+        webSocketImpl: WebSocket,
+        lazy: false,
+        retryAttempts: 100,
+        shouldRetry: () => true,
+      });
+
+      unsubscribe = client.subscribe(
+        {
+          query: `
+            subscription {
+              walletBalances(
+                chain_name: BASE_SEPOLIA
+                wallet_address: "0x4200000000000000000000000000000000000011"
+              ) {
+                wallet_address
+                last_block
+                items {
+                  balance
+                  balance_pretty
+                  is_native
+                  metadata {
+                    contract_name
+                    contract_ticker_symbol
+                    contract_address
+                    contract_decimals
+                  }
                 }
               }
             }
-          }
-        `,
-      },
-      {
-        next: (data: { data?: { walletBalances: WalletData } }) => {
-          if (data.data && data.data.walletBalances) {
-            setWallet(data.data.walletBalances);
-            const now = Date.now();
-            if (lastWalletTime.current) {
-              setWalletRefreshMs(now - lastWalletTime.current);
+          `,
+        },
+        {
+          next: (data: { data?: { walletBalances: WalletData } }) => {
+            if (data.data && data.data.walletBalances) {
+              setWallet(data.data.walletBalances);
+              const now = Date.now();
+              if (lastWalletTime.current) {
+                setWalletRefreshMs(now - lastWalletTime.current);
+              }
+              lastWalletTime.current = now;
             }
-            lastWalletTime.current = now;
-          }
-        },
-        error: (err) => {
-          setError('Covalent subscription error');
-          console.error('[Covalent] Subscription error', err);
-        },
-        complete: () => {
-          console.log('[Covalent] Subscription completed');
-        },
-      }
-    );
+          },
+          error: (err) => {
+            setError('Covalent subscription error');
+            console.error('[Covalent] Subscription error', err);
+            // Try to resubscribe after a delay
+            if (active) setTimeout(subscribe, 1000);
+          },
+          complete: () => {
+            if (active) setTimeout(subscribe, 1000);
+          },
+        }
+      );
+    }
+
+    subscribe();
 
     return () => {
-      unsubscribe();
+      active = false;
+      if (unsubscribe) unsubscribe();
+      if (client) client.dispose();
     };
   }, []);
 

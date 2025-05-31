@@ -53,7 +53,7 @@ const WalletBalance: React.FC = () => {
     <WalletContainer>
       <h2>GoldRush Token Balances Stream</h2>
       <RefreshMetric>
-        Refresh: {walletRefreshMs !== null ? `${walletRefreshMs} ms` : 'N/A'}
+        Refresh: {walletRefreshMs !== null ? walletRefreshMs.toString().padStart(3, '0') + ' ms' : 'N/A'}
       </RefreshMetric>
       {error ? (
         <StatusMessage>Error: {error}</StatusMessage>
@@ -96,7 +96,11 @@ const WalletBalance: React.FC = () => {
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div>{item.balance_pretty}</div>
+                  <div>{
+                    item.is_native
+                      ? Number(item.balance_pretty).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+                      : item.balance_pretty
+                  }</div>
                   <div style={{ fontSize: '0.8em', color: '#888' }}>
                     {item.is_native ? 'Native Token' : 'ERC20'}
                   </div>

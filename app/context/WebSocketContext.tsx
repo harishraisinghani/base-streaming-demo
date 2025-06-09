@@ -30,13 +30,23 @@ interface WalletData {
     items: TokenBalanceData[];
 }
 
+interface BlockDiff {
+    blockNumber: string;
+    diff: any;
+    payloadId?: string;
+    timestamp: string;
+}
+
 interface WebSocketContextType {
     block: Block | null;
     blockRefreshMs: number | null;
     wallet: WalletData | null;
     walletRefreshMs: number | null;
-    status: string;
-    error: string | null;
+    baseStatus: string;
+    baseError: string | null;
+    goldrushStatus: string;
+    goldrushError: string | null;
+    blockDiffs: BlockDiff[];
 }
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
@@ -46,8 +56,11 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [blockRefreshMs, setBlockRefreshMs] = useState<number | null>(null);
     const [wallet, setWallet] = useState<WalletData | null>(null);
     const [walletRefreshMs, setWalletRefreshMs] = useState<number | null>(null);
-    const [status, setStatus] = useState("Connecting...");
-    const [error, setError] = useState<string | null>(null);
+    const [baseStatus, setBaseStatus] = useState("Connecting...");
+    const [baseError, setBaseError] = useState<string | null>(null);
+    const [goldrushStatus, setGoldrushStatus] = useState("Connecting...");
+    const [goldrushError, setGoldrushError] = useState<string | null>(null);
+    const [blockDiffs, setBlockDiffs] = useState<BlockDiff[]>([]);
 
     const baseWsRef = useRef<WebSocket | null>(null);
     const lastBlockTime = useRef<number | null>(null);
@@ -60,16 +73,16 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             baseWsRef.current = ws;
 
             ws.onopen = () => {
-                setStatus("Connected to Base Sepolia");
+                setBaseStatus("Connected to Base Sepolia");
             };
 
             ws.onerror = (e) => {
-                setError("Base Sepolia WebSocket error");
-                setStatus("Error");
+                setBaseError("Base Sepolia WebSocket error");
+                setBaseStatus("Error");
             };
 
             ws.onclose = () => {
-                setStatus("Disconnected from Base Sepolia");
+                setBaseStatus("Disconnected from Base Sepolia");
             };
 
             ws.onmessage = async (event) => {
@@ -93,13 +106,25 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                         }
                         lastBlockTime.current = now;
                     }
+                    // Always store the diff response
+                    if (data.diff && data.metadata) {
+                        setBlockDiffs(prev => [
+                            {
+                                blockNumber: data.metadata.block_number?.toString() ?? '',
+                                diff: data.diff,
+                                payloadId: data.payload_id,
+                                timestamp: new Date().toISOString(),
+                            },
+                            ...prev.slice(0, 19) // keep last 20 diffs
+                        ]);
+                    }
                 } catch (err) {
-                    setError("Error parsing Base Sepolia message");
+                    setBaseError("Error parsing Base Sepolia message");
                 }
             };
         } catch (err) {
-            setError("Failed to setup Base Sepolia WebSocket connection");
-            setStatus("Error");
+            setBaseError("Failed to setup Base Sepolia WebSocket connection");
+            setBaseStatus("Error");
         }
 
         return () => {
@@ -114,12 +139,32 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         let client: Client | null = null;
 
         function subscribe() {
+            console.log("[GoldRush] Attempting to connect to WebSocket...");
+
             client = createClient({
-                url: "wss://gr-staging.streaming.covalenthq.com/graphql",
+                url: "wss://gr-staging-test.streaming.covalenthq.com/graphql",
                 webSocketImpl: WebSocket,
                 lazy: false,
                 retryAttempts: 100,
                 shouldRetry: () => true,
+                on: {
+                    connecting: () => {
+                        console.log("[GoldRush] Connecting...");
+                        setGoldrushStatus("Connecting to GoldRush...");
+                    },
+                    connected: () => {
+                        console.log("[GoldRush] Connected successfully");
+                        setGoldrushStatus("Connected to GoldRush");
+                    },
+                    error: (err: Error) => {
+                        console.error("[GoldRush] Connection error:", err);
+                        setGoldrushError(`GoldRush connection error: ${err.message}`);
+                    },
+                    closed: () => {
+                        console.log("[GoldRush] Connection closed");
+                        setGoldrushStatus("Disconnected from GoldRush");
+                    },
+                },
             });
 
             unsubscribe = client.subscribe(
@@ -127,7 +172,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     query: `
             subscription {
               tokenBalancesForWalletAddress(
-                chain_name: BASE_SEPOLIA
+                chain_name: BASE_SEPOLIA_FLASHBLOCKS
                 wallet_address: "0x4200000000000000000000000000000000000011"
               ) {
                 wallet_address
@@ -161,11 +206,13 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                             lastWalletTime.current = now;
                         }
                     },
-                    error: (err) => {
-                        setError("Covalent subscription error");
+                    error: (err: Error) => {
+                        console.error("[GoldRush] Subscription error:", err);
+                        setGoldrushError(`GoldRush subscription error: ${err.message}`);
                         if (active) setTimeout(subscribe, 1000);
                     },
                     complete: () => {
+                        console.log("[GoldRush] Subscription completed");
                         if (active) setTimeout(subscribe, 1000);
                     },
                 }
@@ -182,7 +229,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, []);
 
     return (
-        <WebSocketContext.Provider value={{ block, blockRefreshMs, wallet, walletRefreshMs, status, error }}>
+        <WebSocketContext.Provider value={{ block, blockRefreshMs, wallet, walletRefreshMs, baseStatus, baseError, goldrushStatus, goldrushError, blockDiffs }}>
             {children}
         </WebSocketContext.Provider>
     );
@@ -191,11 +238,11 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 export function useWebSocketBlock() {
     const ctx = useContext(WebSocketContext);
     if (!ctx) throw new Error("useWebSocketBlock must be used within a WebSocketProvider");
-    return { block: ctx.block, status: ctx.status, error: ctx.error, blockRefreshMs: ctx.blockRefreshMs };
+    return { block: ctx.block, status: ctx.baseStatus, error: ctx.baseError, blockRefreshMs: ctx.blockRefreshMs, blockDiffs: ctx.blockDiffs };
 }
 
 export function useWebSocketWallet() {
     const ctx = useContext(WebSocketContext);
     if (!ctx) throw new Error("useWebSocketWallet must be used within a WebSocketProvider");
-    return { wallet: ctx.wallet, status: ctx.status, error: ctx.error, walletRefreshMs: ctx.walletRefreshMs };
+    return { wallet: ctx.wallet, status: ctx.goldrushStatus, error: ctx.goldrushError, walletRefreshMs: ctx.walletRefreshMs };
 }

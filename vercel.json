@@ -1,7 +1,12 @@
 {
     "version": 2,
-    "buildCommand": "yarn build",
-    "devCommand": "yarn dev",
-    "installCommand": "yarn install",
-    "framework": "nextjs"
-} 
+    "builds": [
+        {
+            "src": "index.ts",
+            "use": "@vercel/node"
+        }
+    ],
+    "env": {
+        "GOLDRUSH_API_KEY": "@goldrush_api_key"
+    }
+}
